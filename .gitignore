@@ -1,0 +1,31 @@
+.venv/
+__pycache__/
+*.egg-info/
+.env
+*.mp4
+*.wav
+*.transcript.txt
+*.script.txt
+*.meta.json
+*.facts.txt
+*.questions.json
+*.timestamps.json
+*.sync-plan.json
+*.sync.json
+*.sync-assets/
+.explain-video-*/
+
+# Local config, exports, packaging, and editor caches
+.env.*
+!.env.example
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+.DS_Store
+# Original local implementation brief, not release documentation
+Codex prompt*.md

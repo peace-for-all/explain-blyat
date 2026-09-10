@@ -1,0 +1,35 @@
+name: Tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install FFmpeg and package tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip build
+      - name: Build and install distribution
+        run: |
+          python -m build
+          python -m pip install dist/*.whl
+          python -m pip check
+      - name: Check installed CLI outside checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          explain-video --help
+          python -m explain_video --help
+      - name: Run offline tests against installed package
+        run: |
+          cd "$RUNNER_TEMP"
+          python -m unittest discover -s "$GITHUB_WORKSPACE/tests" -v
