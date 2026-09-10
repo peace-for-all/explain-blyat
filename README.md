@@ -66,7 +66,7 @@ is never overwritten and all original audio is excluded from the output.
 
 ## Find your result
 
-For `explain-video demo.mov`, the result looks like:
+For `./run demo.mov`, the result looks like:
 
 ```text
 demo.mov                         original recording
@@ -101,18 +101,18 @@ SDR screen recordings, not every codec, HDR recording, or camera format.
 
 ```bash
 # Skip questions (also required for unattended runs).
-explain-video input.mp4 --non-interactive
+./run input.mp4 --non-interactive
 
 # Add context and save a separate version.
-explain-video input.mp4 --facts extra-facts.txt --output-dir demo-v2
+./run input.mp4 --facts extra-facts.txt --output-dir demo-v2
 
 # Use a script you have reviewed; still transcribes the input.
-explain-video input.mp4 --script narration.txt --output-dir demo-v3
+./run input.mp4 --script narration.txt --output-dir demo-v3
 
 # Experimental scene timing; sends sampled screenshots to OpenAI.
-explain-video input.mp4 --sync
+./run input.mp4 --sync
 
-explain-video --help
+./run --help
 ```
 
 `./run` works without activation. To use `explain-video` or
@@ -156,6 +156,7 @@ settings, interruption behavior, and media limits.
 ## Development
 
 ```bash
+source .venv/bin/activate
 python -m pip install -e .
 python -m unittest discover -s tests -v
 python -m pip check

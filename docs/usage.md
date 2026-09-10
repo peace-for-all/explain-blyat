@@ -1,6 +1,8 @@
 # Usage guide
 
-See the [README](../README.md) for installation and a first run.
+See the [README](../README.md) for installation and a first run. The examples
+below use `python -m explain_video` after `source .venv/bin/activate`; you can
+also use `./run` with the same arguments without activating the environment.
 
 ## Interactive questions
 
