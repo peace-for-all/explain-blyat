@@ -26,12 +26,12 @@ rewriting proceeds immediately. Questions are suggestions, not facts: skipped
 questions are excluded from the rewrite input, and the prompt forbids inventing
 their answers. Facts already in the recording remain usable even if you skip.
 
-`input.questions.json` records questions and answers, and is updated atomically
+`details/questions.json` in the run folder records questions and answers, and is updated atomically
 after each completed answer. Metadata records the model, counts, and artifact
 hash. Ctrl-C or closed input stops before rewriting/TTS and preserves completed
 answers plus the transcript. An unfinished multiline answer is not saved.
 There is no automatic resume: retained answers can be copied into a facts file
-for a new version using `--output-prefix`.
+for a new run, optionally naming its folder with `--output-dir`.
 
 For unattended use, explicitly skip this step:
 
@@ -72,28 +72,29 @@ variation; inspect timing and delivery before sharing.
 For a fair comparison using an already approved script:
 
 ```bash
-python -m explain_video input.mp4 --sync --script input.script.txt
+python -m explain_video input.mp4 --sync --script input.explained/script.txt
 ```
 
 `--script` skips questions and rewriting; it still transcribes the source for
 alignment timestamps. It cannot be combined with `--facts`. Without `--sync`,
 `--script` can also produce another whole-video voice rendition.
 
-By default synced results use `input.synced.*`, preserving the ordinary output.
-Use `--output-prefix another-version` for subsequent experiments. Extra artifacts:
+By default synced results use a new `input.synced/` folder, with numbered
+folders on reruns. Use `--output-dir another-version` to choose its name.
+The finished video and `script.txt` are at the top level. Extra artifacts inside it:
 
-- `input.synced.timestamps.json`: source-speech timestamps.
-- `input.synced.sync-plan.json`: validated plan before synthesis, including sample
+- `details/timestamps.json`: source-speech timestamps.
+- `details/sync-plan.json`: validated plan before synthesis, including sample
   times, script hash, and the planner's reported token usage.
-- `input.synced.sync.json`: source-to-output interval map, narration durations,
+- `details/sync.json`: source-to-output interval map, narration durations,
   speed changes, holds and gaps.
-- `input.synced.sync-assets/`: sampled screenshots, raw planner response, separate
+- `details/sync-assets/`: sampled screenshots, raw planner response, separate
   voice WAVs, and encoded scene parts. These remain available if a later stage fails.
 
-The final `voice.wav` is the assembled narration timeline including inserted
+The final `details/voice.wav` is the assembled narration timeline including inserted
 silence; metadata's `narration_duration` is spoken-audio duration before padding.
 There is no automatic paid retry or resume. A failed attempt keeps its completed
-artifacts; use a new prefix to start over. These artifacts are ignored by Git.
+artifacts; rerunning creates a new folder and starts over. These artifacts are ignored by Git.
 
 Sync sends actual screen images to OpenAI, unlike the normal audio/text-only
 workflow. Sampling may miss brief changes, and a model's plausible timing plan
@@ -106,11 +107,11 @@ Write extra context in a UTF-8 text file, then pass it with the video:
 
 ```bash
 EXPLAIN_TTS_PROVIDER=openai python -m explain_video input.mp4 \
-  --voice marin --facts extra-facts.txt --output-prefix input-v2
+  --voice marin --facts extra-facts.txt --output-dir input-v2
 ```
 
-`--output-prefix` creates a separate version (`input-v2.explained.mp4`, etc.)
-without replacing the previous result. Its parent directory must already exist.
+`--output-dir input-v2` creates a new folder containing `input.explained.mp4`,
+`script.txt`, and `details/`. Its parent directory must already exist.
 It does not reuse previous API results: an ordinary CLI run processes all stages.
 
 Facts can be plain sentences or bullets in Russian or English. Include the
@@ -128,29 +129,51 @@ speech. Unmarked contradictions should remain uncertain rather than silently
 choosing a version. These are LLM instructions, not a deterministic fact checker;
 review the saved script, especially numeric claims.
 
-The normalized facts are saved as `input-v2.facts.txt`, with their SHA-256 in
+The normalized facts are saved as `input-v2/details/facts.txt`, with their SHA-256 in
 metadata; the transcript remains a record of the spoken words only. Name your
 input facts file differently from that output snapshot (such as `extra-facts.txt`).
 Missing, empty, or non-UTF-8 facts files fail before any paid requests. Facts are
 sent to the rewrite provider and may appear in the narration. Without `--facts`,
 the interactive questions can collect missing context instead.
 
-Outputs beside the input:
+## Output folders and failures
+
+By default the CLI creates a new `input.explained/` folder beside the source:
 
 ```text
-input.explained.mp4
-input.transcript.txt
-input.script.txt
-input.meta.json
-input.voice.wav
+input.explained/
+  input.explained.mp4
+  script.txt
+  details/
+    transcript.txt
+    voice.wav
+    meta.json
+    facts.txt          # when --facts is supplied
+    questions.json     # with interactive questions
 ```
 
-The source is never overwritten. Existing output files, including symlinks, cause
-an error before transcription. To rerun, move previous artifacts aside or give the
-input a new name. Completed transcript/script/voice artifacts survive a later
-stage failure. Temporary extracted source audio is removed on normal exit,
-failure, or Ctrl-C. A forcibly killed process may leave a `.explain-video-*`
-temporary directory. There is no automatic resume or paid retry in v0.
+The run folder is printed before processing starts. After success, the console
+prints the video path, a file URI, and platform-specific commands to play it and
+open its folder. On macOS, `open -R` reveals it in Finder. Commands are quoted
+for filenames with spaces or shell punctuation; no player is launched automatically.
+
+Repeated commands create `input.explained-2/`, `input.explained-3/`, etc. A supplied
+`--output-dir` must not exist, even as a symlink; its parent must exist. This keeps
+runs separate and prevents overwrites. `--output-dir` and `--output-prefix` cannot
+be combined. Existing loose files from earlier versions are not moved or deleted.
+
+The source is never overwritten. Completed transcript/script/voice artifacts
+survive a later failure; the error or cancellation message prints the run folder.
+An early failure may leave a folder with no completed outputs. Temporary extracted
+source audio is removed on normal exit, failure, or Ctrl-C. A forcibly killed
+process may leave a `.explain-video-*` temporary directory inside the run folder.
+There is no automatic resume or paid retry.
+
+For compatibility, explicit `--output-prefix variant` retains the original flat
+layout (`variant.explained.mp4`, `variant.script.txt`, etc.). These paths still
+reject collisions before paid calls. Python callers of `run_pipeline` also keep
+that layout unless they pass `output_dir` pointing to an existing fresh folder;
+the CLI creates and numbers that folder for them.
 
 ## Providers and voice
 
@@ -198,7 +221,7 @@ script to the selected TTS provider. Screen frames are processed locally unless
 `--sync` is enabled, which sends sampled screenshots to OpenAI for timing analysis.
 `store=false` is used for the rewrite response; this is not a promise about all
 provider retention. Credentials are excluded from metadata and Git. Text and
-voice artifacts remain locally beside the video.
+voice artifacts remain locally in the run folder.
 
 Provider contracts were checked against the official
 [transcription](https://developers.openai.com/api/docs/guides/speech-to-text),

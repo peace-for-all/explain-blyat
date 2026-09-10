@@ -16,7 +16,7 @@ def command(args: list[str]) -> bytes:
 def check_tools() -> None:
     for tool in ("ffmpeg", "ffprobe"):
         if not shutil.which(tool):
-            raise ValueError(f"Missing {tool}; install ffmpeg (Ubuntu: sudo apt install ffmpeg)")
+            raise ValueError(f"Missing {tool}; install ffmpeg (Ubuntu: sudo apt install ffmpeg; macOS: brew install ffmpeg)")
 
 
 def probe(path: Path) -> dict:

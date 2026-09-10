@@ -1,5 +1,6 @@
 import array
 import hashlib
+import io
 import json
 import math
 import shutil
@@ -10,6 +11,7 @@ from pathlib import Path
 
 from explain_video.media import command, probe, duration
 from explain_video.pipeline import run_pipeline, output_paths
+from explain_video.__main__ import main
 
 
 class FakeTranscription:
@@ -39,6 +41,34 @@ class ToneTTS:
 
 @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg required")
 class MediaTests(unittest.TestCase):
+    def test_cli_groups_outputs_for_mp4_mov_mkv_and_webm(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for extension in ("mp4", "mov", "mkv", "webm"):
+                with self.subTest(extension=extension):
+                    source = root / f"Видео {extension}.{extension}"
+                    codecs = ["-c:v", "libvpx-vp9", "-c:a", "libopus"] if extension == "webm" else ["-c:v", "libx264", "-c:a", "aac"]
+                    command(["ffmpeg", "-nostdin", "-v", "error", "-n", "-f", "lavfi", "-i",
+                             "testsrc2=size=64x64:rate=10:duration=0.4", "-f", "lavfi", "-i",
+                             "sine=frequency=220:sample_rate=48000:duration=0.4", *codecs, "-shortest", str(source)])
+                    original = source.read_bytes()
+                    output = io.StringIO()
+                    with patch("sys.argv", ["explain-video", str(source), "--non-interactive"]), \
+                         patch("explain_video.__main__.make_providers", return_value=(FakeTranscription(), FakeRewrite(), ToneTTS(.4))), \
+                         patch("sys.stdout", output):
+                        self.assertEqual(main(), 0)
+                    folder = root / f"Видео {extension}.explained"
+                    self.assertEqual({p.name for p in folder.iterdir()},
+                                     {f"Видео {extension}.explained.mp4", "script.txt", "details", ".gitignore"})
+                    self.assertEqual({p.name for p in (folder / "details").iterdir()},
+                                     {"transcript.txt", "voice.wav", "meta.json"})
+                    paths = output_paths(source, output_dir=folder)
+                    info = probe(paths["video"])
+                    self.assertEqual([s["codec_name"] for s in info["streams"]], ["h264", "aac"])
+                    self.assertEqual(source.read_bytes(), original)
+                    self.assertIn(paths["video"].as_uri(), output.getvalue())
+                    self.assertFalse(output_paths(source)["transcript"].exists())
+
     def test_unsupported_output_filesystem_fails_before_paid_calls(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "input.mp4"
@@ -119,8 +149,11 @@ class MediaTests(unittest.TestCase):
                      "color=size=64x64:duration=0.2", "-f", "lavfi", "-i", "anullsrc",
                      "-t", "0.2", str(source)])
             with self.assertRaisesRegex(RuntimeError, "provider unavailable"):
-                run_pipeline(source, FakeTranscription(), FailedRewrite(), None, "unused", lambda s: None)
-            paths = output_paths(source)
+                folder = Path(directory) / "run"
+                folder.mkdir()
+                run_pipeline(source, FakeTranscription(), FailedRewrite(), None, "unused", lambda s: None,
+                             output_dir=folder)
+            paths = output_paths(source, output_dir=folder)
             self.assertTrue(paths["transcript"].exists())
             self.assertFalse(paths["video"].exists())
-            self.assertFalse(list(Path(directory).glob(".explain-video-*")))
+            self.assertFalse(list(folder.glob(".explain-video-*")))

@@ -82,7 +82,9 @@ class InterviewPipelineTests(unittest.TestCase):
             root = Path(directory)
             source = root / "input.mp4"
             source.write_bytes(b"source")
-            paths = output_paths(source, include_facts=True, include_questions=True)
+            folder = root / "run"
+            folder.mkdir()
+            paths = output_paths(source, include_facts=True, include_questions=True, output_dir=folder)
             transcriber = Mock(name="transcriber")
             transcriber.name, transcriber.model = "test", "test"
             transcriber.transcribe.return_value = "Рассказ."
@@ -102,7 +104,8 @@ class InterviewPipelineTests(unittest.TestCase):
                     patch("explain_video.media.render", side_effect=lambda s, v, t, timing: t.write_bytes(b"video")):
                 def run():
                     return run_pipeline(source, transcriber, rewriter, tts, "marin", lambda s: None,
-                                        facts="Дополнение.", question_provider=questioner, answer_question=answer_callback)
+                                        facts="Дополнение.", question_provider=questioner, answer_question=answer_callback,
+                                        output_dir=folder)
                 if cancelled:
                     with self.assertRaises(KeyboardInterrupt):
                         run()

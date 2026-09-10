@@ -131,14 +131,15 @@ class SyncMediaTests(unittest.TestCase):
                     hz, seconds = {"Красный.": (440, 1), "Зелёный.": (660, 3), "Синий.": (880, 2)}[text]
                     media.command(["ffmpeg", "-v", "error", "-n", "-f", "lavfi", "-i",
                                    f"sine=frequency={hz}:sample_rate=24000:duration={seconds}", str(target)])
-            prefix = root / "synced"
+            folder = root / "synced"
+            folder.mkdir()
             with httpx.Client(transport=httpx.MockTransport(handler)) as client:
                 engine = SyncEngine(OpenAIAPI("test", client), "test", transcriber)
                 meta = run_pipeline(source, transcriber, rewriter, ToneTTS(), "marin", lambda s: None,
-                                    sync_engine=engine, narration_script=SCRIPT, output_prefix=prefix)
+                                    sync_engine=engine, narration_script=SCRIPT, output_dir=folder)
             rewriter.rewrite.assert_not_called()
             self.assertEqual(len(request_count), 1)
-            paths = output_paths(source, prefix, include_sync=True)
+            paths = output_paths(source, output_dir=folder, include_sync=True)
             self.assertTrue(all(p.exists() for p in paths.values()))
             sync = json.loads(paths["sync"].read_text())
             self.assertEqual(paths["script"].read_text().strip(), SCRIPT)
@@ -161,4 +162,4 @@ class SyncMediaTests(unittest.TestCase):
             self.assertEqual(meta["rewrite_model"], "supplied-script")
             with self.assertRaisesRegex(ValueError, "already exists"):
                 run_pipeline(source, transcriber, rewriter, ToneTTS(), "marin", sync_engine=engine,
-                             narration_script=SCRIPT, output_prefix=prefix)
+                             narration_script=SCRIPT, output_dir=folder)

@@ -12,7 +12,10 @@ from .sync import SyncEngine, render_synced
 
 
 def output_paths(source: Path, prefix: Path | None = None, *, include_facts: bool = False,
-                 include_questions: bool = False, include_sync: bool = False) -> dict[str, Path]:
+                 include_questions: bool = False, include_sync: bool = False,
+                 output_dir: Path | None = None) -> dict[str, Path]:
+    if output_dir is not None and prefix is not None:
+        raise ValueError("Use either output_dir or output_prefix, not both")
     base = prefix if prefix is not None else source.with_name(source.stem)
     paths = {key: base.with_name(base.name + suffix) for key, suffix in {
         "video": ".explained.mp4", "transcript": ".transcript.txt", "script": ".script.txt",
@@ -25,6 +28,11 @@ def output_paths(source: Path, prefix: Path | None = None, *, include_facts: boo
         for key, suffix in {"sync_plan": ".sync-plan.json", "sync": ".sync.json",
                             "timestamps": ".timestamps.json", "sync_assets": ".sync-assets"}.items():
             paths[key] = base.with_name(base.name + suffix)
+    if output_dir is not None:
+        paths = {key: output_dir / "details" / path.name.removeprefix(base.name + ".")
+                 for key, path in paths.items()}
+        paths["video"] = output_dir / (source.stem + ".explained.mp4")
+        paths["script"] = output_dir / "script.txt"
     return paths
 
 
@@ -38,7 +46,8 @@ def run_pipeline(source: Path, transcription: TranscriptionProvider, rewrite: Re
                  *, facts: str | None = None, output_prefix: Path | None = None,
                  question_provider: QuestionProvider | None = None,
                  answer_question: Callable[[str, int, int], str | None] | None = None,
-                 sync_engine: SyncEngine | None = None, narration_script: str | None = None) -> dict:
+                 sync_engine: SyncEngine | None = None, narration_script: str | None = None,
+                 output_dir: Path | None = None) -> dict:
     source = source.absolute()
     if not source.is_file():
         raise ValueError(f"Input file not found: {source}")
@@ -52,13 +61,16 @@ def run_pipeline(source: Path, transcription: TranscriptionProvider, rewrite: Re
     if question_provider is not None and answer_question is None:
         raise ValueError("Interactive mode needs an answer callback")
     paths = output_paths(source, output_prefix, include_facts=facts is not None,
-                         include_questions=question_provider is not None, include_sync=sync_engine is not None)
+                         include_questions=question_provider is not None, include_sync=sync_engine is not None,
+                         output_dir=output_dir)
     paths = {key: path.absolute() for key, path in paths.items()}
     if not paths["video"].parent.is_dir():
         raise ValueError("Output directory does not exist; create it before running")
     for path in paths.values():
         if os.path.lexists(path):
             raise ValueError(f"Output already exists: {path.name}; move existing artifacts or rename the input")
+    if output_dir is not None and os.path.lexists(paths["meta"].parent):
+        raise ValueError("Output details directory already exists; choose a new output directory")
     info = media.probe(source)
     video_duration = media.duration(info, "video")
     media.duration(info, "audio")
@@ -81,10 +93,12 @@ def run_pipeline(source: Path, transcription: TranscriptionProvider, rewrite: Re
         except OSError as error:
             raise ValueError(
                 "Output directory must support hard links; use --output-prefix "
-                "in a writable local Linux filesystem directory"
+                "or --output-dir on a writable local filesystem (such as APFS or ext4)"
             ) from error
         probe_target.unlink()
         probe_source.unlink()
+        if output_dir is not None:
+            paths["meta"].parent.mkdir()
         if sync_engine is not None:
             paths["sync_assets"].mkdir()
         if facts is not None:
