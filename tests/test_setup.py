@@ -55,12 +55,16 @@ class SetupTests(unittest.TestCase):
             interpreter.write_text("#!/bin/bash\nexec " + shlex.quote(sys.executable) +
                                    " -c 'import json,os,sys; print(json.dumps([os.getcwd(),sys.argv[1:]]))' \"$@\"\n")
             interpreter.chmod(0o755)
+            # macOS temp paths commonly pass through /var -> /private/var.
+            # Exercise the same behavior on Linux with an explicit symlink.
+            alias = Path(directory) / "checkout alias"
+            alias.symlink_to(root, target_is_directory=True)
             args = ["a video's $name.mov", "--config", "my config.env"]
-            result = subprocess.run(["bash", str(root / "run"), *args], cwd=directory, text=True, capture_output=True)
+            result = subprocess.run(["bash", str(alias / "run"), *args], cwd=directory, text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             cwd, forwarded = json.loads(result.stdout)
             self.assertEqual(Path(cwd).resolve(), Path(directory).resolve())
-            self.assertEqual(forwarded, ["-m", "explain_video", "--config", str(root / ".env"), *args])
+            self.assertEqual(forwarded, ["-m", "explain_video", "--config", str(root.resolve() / ".env"), *args])
 
     @unittest.skipIf(os.geteuid() == 0, "installer must run as a normal user")
     def test_invalid_existing_environment_is_preserved_before_downloads(self):
