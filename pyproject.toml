@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "explain-video"
-version = "0.2.1"
+version = "0.3.0"
 description = "Turn a Russian screen explanation into a simply narrated demo"
 readme = "README.md"
 license = "MIT"
@@ -21,3 +21,6 @@ explain-video = "explain_video.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["explain_video*"]
+
+[tool.setuptools.package-data]
+explain_video = ["guide.html"]

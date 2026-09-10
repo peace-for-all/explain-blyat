@@ -8,7 +8,7 @@ FILES = [
     "pyproject.toml", "MANIFEST.in", ".github/workflows/tests.yml",
     "scripts/export_source.py", "setup.sh", "run",
 ]
-PATTERNS = ["explain_video/*.py", "tests/test_*.py", "docs/*.md"]
+PATTERNS = ["explain_video/*.py", "explain_video/*.html", "tests/test_*.py", "docs/*.md"]
 
 
 def main():

@@ -9,6 +9,12 @@ requires **FFmpeg** (including ffprobe and the libx264 encoder), an **OpenAI API
 key**, and internet access. API calls cost money. Russian is currently built
 into transcription and rewriting; this is not a multilingual interface.
 
+## Plan a 1–2 minute recording
+
+Run `./run --guide` to open a local browser guide. Answer four short questions,
+switch to recording view, and click a question to highlight it while recording.
+You can save and reload your answers. See [the guide workflow](docs/guide.md).
+
 ## Install
 
 Clone this repository (or download and extract its ZIP from GitHub), then run:

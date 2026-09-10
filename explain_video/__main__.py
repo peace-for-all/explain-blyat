@@ -49,7 +49,8 @@ def print_result(video: Path, script: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Replace a screen recording's audio with a simple Russian explanation.")
-    parser.add_argument("input", type=Path, help="Recording with video and audio (MP4, MOV, MKV, WebM, etc.; decoded by FFmpeg)")
+    parser.add_argument("input", type=Path, nargs="?", help="Recording with video and audio (MP4, MOV, MKV, WebM, etc.; decoded by FFmpeg)")
+    parser.add_argument("--guide", action="store_true", help="Open an offline question-based planning and recording guide")
     parser.add_argument("--voice", help="Voice identifier for the configured TTS provider")
     parser.add_argument("--sync", action="store_true", help="Experimental scene alignment using timestamps and screenshots")
     parser.add_argument("--script", type=Path, help="Reuse an approved UTF-8 narration script; skips questions and rewriting")
@@ -60,6 +61,19 @@ def main() -> int:
     output.add_argument("--output-prefix", type=Path, help="Legacy flat output path prefix, e.g. demo-v2; use --output-dir for grouped files")
     parser.add_argument("--config", type=Path, default=Path(".env"), help="Environment file (default: .env in current directory)")
     args = parser.parse_args()
+    if args.guide:
+        if args.input is not None or any((args.voice, args.sync, args.script, args.non_interactive,
+                                         args.facts, args.output_dir, args.output_prefix)):
+            parser.error("--guide is a separate planning step; use it without video-processing options")
+        from .guide import open_guide
+        try:
+            open_guide()
+        except OSError as error:
+            print(f"explain-video: {error}", file=sys.stderr)
+            return 1
+        return 0
+    if args.input is None:
+        parser.error("provide a recording, or use --guide to prepare one")
     run_directory = None
     try:
         if not args.input.is_file():

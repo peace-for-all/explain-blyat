@@ -30,3 +30,7 @@ htmlcov/
 .DS_Store
 # Original local implementation brief, not release documentation
 Codex prompt*.md
+
+# Private recording plans and generated guide pages
+recording-plan*.json
+recording-guide*.html
