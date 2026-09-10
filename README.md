@@ -11,39 +11,51 @@ into transcription and rewriting; this is not a multilingual interface.
 
 ## Install
 
-On Ubuntu/Debian with Python 3.11 or newer:
-
-```bash
-sudo apt update
-sudo apt install git ffmpeg python3-venv
-```
-
-On macOS, install [Homebrew](https://docs.brew.sh/Installation) first, then:
-
-```bash
-brew install python ffmpeg
-```
-
-[Homebrew's FFmpeg package](https://formulae.brew.sh/formula/ffmpeg) includes the
-media tools. On either platform, continue with:
+Clone this repository (or download and extract its ZIP from GitHub), then run:
 
 ```bash
 git clone https://github.com/peace-for-all/explain-blyat.git
 cd explain-blyat
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install .
-cp .env.example .env
+./setup.sh
 ```
 
-Edit `.env` and set `OPENAI_API_KEY` to your own key. Do not share this file.
-There is no shared account or hosted backend. Native Windows is not verified;
-Windows users can use a Linux environment in WSL.
+Run setup as your normal user, **without sudo**. It detects Linux or macOS and:
+
+- Installs missing FFmpeg tools. Linux uses apt, dnf, pacman, or zypper and may
+  request your sudo password. Mac uses Homebrew and starts its official installer
+  if needed; Apple's developer tools may also need to finish installing.
+- Downloads [uv](https://docs.astral.sh/uv/reference/installer/) and Python 3.13
+  into `.tools/`, then installs the application and dependencies into `.venv/`.
+  System Python and shell profiles are not changed by the Python bootstrap.
+- Reuses a working Python 3.11+ `.venv`, preserves any existing `.env` exactly,
+  and creates a missing `.env` with owner-only permissions.
+- Checks FFmpeg encoders, package dependencies, and CLI startup without paid API calls.
+
+Set `OPENAI_API_KEY` in `.env` to your own key before processing videos. Setup
+reports whether a key is configured but does not test account access. Existing
+shell variables still override `.env`. There is no shared account or hosted backend.
+
+Then run `./run "video.mp4"`; no environment activation is needed. This launcher
+always uses this checkout's `.env`, even when invoked from another directory;
+relative input paths remain relative to your current directory.
+
+Rerun `./setup.sh` after `git pull` to install updates. An invalid/old `.venv` is
+reported and preserved, so you can move it aside yourself. Keep `.tools/` with the
+checkout: a newly created `.venv` uses its local Python installation.
+
+Ubuntu/Debian and macOS setup are exercised in CI. Other listed Linux package
+managers are covered by offline command-dispatch tests; package availability
+varies. Fedora/openSUSE may need a full FFmpeg package with libx264 from repositories
+you configure yourself; setup does not enable third-party repositories or perform
+an OS upgrade. Native Windows is not verified; use WSL with Linux.
+
+See [manual installation](docs/setup.md) if you already manage your own Python
+environment or system packages.
 
 ## Run
 
 ```bash
-explain-video "screen recording.mp4"
+./run "screen recording.mp4"
 ```
 
 The command transcribes the first audio track, then asks up to five questions
@@ -103,8 +115,9 @@ explain-video input.mp4 --sync
 explain-video --help
 ```
 
-`python -m explain_video` works too. Activate the virtual environment in each
-new terminal. Configuration defaults to `.env` in your **current directory**;
+`./run` works without activation. To use `explain-video` or
+`python -m explain_video` directly, run `source .venv/bin/activate` in each new
+terminal. Configuration defaults to `.env` in your **current directory**;
 use `--config /path/to/.env` when running elsewhere. Exported shell variables
 override the file. The file accepts `KEY=value` with optional surrounding quotes;
 shell expansion and inline comments are not supported.

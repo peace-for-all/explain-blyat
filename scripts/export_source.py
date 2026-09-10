@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = [
     ".env.example", ".gitignore", "README.md", "LICENSE", "CONTRIBUTING.md",
     "pyproject.toml", "MANIFEST.in", ".github/workflows/tests.yml",
-    "scripts/export_source.py",
+    "scripts/export_source.py", "setup.sh", "run",
 ]
 PATTERNS = ["explain_video/*.py", "tests/test_*.py", "docs/*.md"]
 

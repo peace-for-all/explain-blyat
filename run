@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+RUN_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+if [[ "$(uname -s)" == Darwin ]]; then
+    export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
+fi
+if [[ ! -x "$RUN_ROOT/.venv/bin/python" ]]; then
+    printf 'Run setup first: %q\n' "$RUN_ROOT/setup.sh" >&2
+    exit 1
+fi
+# Keep the caller's working directory for relative video paths, but always use
+# this checkout's environment/config. An explicit --config argument can override it.
+exec "$RUN_ROOT/.venv/bin/python" -m explain_video --config "$RUN_ROOT/.env" "$@"
